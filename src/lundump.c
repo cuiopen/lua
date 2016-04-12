@@ -22,6 +22,7 @@
 #include "lstring.h"
 #include "lundump.h"
 #include "lzio.h"
+#include "ltable.h"
 
 
 #if !defined(luai_verifycode)
@@ -103,6 +104,29 @@ static TString *LoadString (LoadState *S) {
   }
 }
 
+static unsigned int LoadIndex (LoadState *S) {
+  unsigned int index = LoadByte(S);
+  if (index == 0xFF)
+    LoadVar(S, index);
+  return index;
+}
+
+static Table *LoadTable (LoadState *S, const Proto *f) {
+  int i;
+  lua_State *L = S->L;
+  int narray = LoadIndex(S);
+  int nnode = LoadIndex(S);
+  Table *t = luaH_new(L);
+  luaH_resize(L, t, narray, nnode);
+  for (i=0;i<narray;i++) {
+    luaH_setint(L, t, i+1, &f->k[LoadIndex(S)]);
+  }
+  for (i=0;i<nnode;i++) {
+    TValue *v = luaH_set(L, t, &f->k[LoadIndex(S)]);
+    setobj(L, v, &f->k[LoadIndex(S)]);
+  }
+  return t;
+}
 
 static void LoadCode (LoadState *S, Proto *f) {
   int n = LoadInt(S);
@@ -141,6 +165,9 @@ static void LoadConstants (LoadState *S, Proto *f) {
     case LUA_TSHRSTR:
     case LUA_TLNGSTR:
       setsvalue2n(S->L, o, LoadString(S));
+      break;
+    case LUA_TTABLE:
+      sethvalue(S->L, o, LoadTable(S, f));
       break;
     default:
       lua_assert(0);

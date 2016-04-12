@@ -17,6 +17,8 @@
 #include "lobject.h"
 #include "lstate.h"
 #include "lundump.h"
+#include "lvm.h"
+#include "ltable.h"
 
 
 typedef struct {
@@ -69,7 +71,6 @@ static void DumpInteger (lua_Integer x, DumpState *D) {
   DumpVar(x, D);
 }
 
-
 static void DumpString (const TString *s, DumpState *D) {
   if (s == NULL)
     DumpByte(0, D);
@@ -86,6 +87,43 @@ static void DumpString (const TString *s, DumpState *D) {
   }
 }
 
+static void DumpIndex (unsigned int index, DumpState *D) {
+  if (index < 0xFF)
+      DumpByte(index, D);
+  else {
+      DumpByte(0xFF, D);
+      DumpVar(index, D);
+  }
+}
+
+static int findconst (const Proto *f, const TValue *v, int kn) {
+  int i;
+  for (i=0;i<kn;i++) {
+    if (luaV_rawequalobj(v, &f->k[i]))
+      return i;
+  }
+  lua_assert(0);
+  return 0;
+}
+
+static void DumpTable (const Table *t, DumpState *D, const Proto *f, int kn) {
+  int sizenode,nnode,i;
+  DumpIndex(t->sizearray, D);
+  sizenode = twoto(t->lsizenode);
+  nnode = 0;
+  for (i=0;i<sizenode;i++) {
+    if (!ttisnil(gval(&t->node[i]))) {
+      ++nnode;
+    }
+  }
+  DumpIndex(nnode, D);
+  for (i=0;i<sizenode;i++) {
+    if (!ttisnil(gval(&t->node[i]))) {
+      DumpIndex(findconst(f,gkey(&t->node[i]), kn), D);
+      DumpIndex(findconst(f,gval(&t->node[i]), kn), D);
+    }
+  }
+}
 
 static void DumpCode (const Proto *f, DumpState *D) {
   DumpInt(f->sizecode, D);
@@ -117,6 +155,9 @@ static void DumpConstants (const Proto *f, DumpState *D) {
     case LUA_TSHRSTR:
     case LUA_TLNGSTR:
       DumpString(tsvalue(o), D);
+      break;
+    case LUA_TTABLE:
+      DumpTable(hvalue(o), D, f, i);
       break;
     default:
       lua_assert(0);
