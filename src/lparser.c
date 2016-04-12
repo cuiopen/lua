@@ -729,8 +729,10 @@ static int isconsttable(FuncState *fs, int pc) {
       o != OP_SETLIST)
       return 0;
     if (o == OP_SETTABLE) {
-      if (!ISK(GETARG_B(fs->f->code[i])) ||
-        !ISK(GETARG_C(fs->f->code[i])))
+      int k[2];
+      k[0] = GETARG_B(fs->f->code[i]);
+      k[1] = GETARG_C(fs->f->code[i]);
+      if (!luaK_indexK(fs, pc, i, k, 0))
         return 0;
     }
   }

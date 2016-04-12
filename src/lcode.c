@@ -336,11 +336,101 @@ static int addk (FuncState *fs, TValue *key, TValue *v) {
   return k;
 }
 
-void luaK_tableK (FuncState *fs, Table *t, int pc) {
+int luaK_indexK (FuncState *fs, int pc, int index, int rk[2], int changeop) {
+  int n = 0;
+  int i;
+  int result[2];
+  if (!ISK(rk[0])) {
+    ++n;
+  }
+  if (!ISK(rk[1])) {
+    ++n;
+  }
+  if (n == 0) {
+    rk[0] = INDEXK(rk[0]);
+    rk[1] = INDEXK(rk[1]);
+    return 1;
+  }
+  result[0] = -1;
+  result[1] = -1;
+  for (i=0;i<n;i++) {
+    OpCode o;
+    int r,k;
+    --index;
+    if (index < pc)
+      return 0;
+    o = GET_OPCODE(fs->f->code[index]);
+    if (o == OP_LOADK) {
+      k = GETARG_Bx(fs->f->code[index]);
+      if (changeop) {
+        /* remove LOADK to avoid add constant to list */
+        SET_OPCODE(fs->f->code[index], OP_NEWTABLEK);
+      }
+    } else if (o == OP_EXTRAARG) {
+      k = GETARG_Ax(fs->f->code[index]);
+      --index;
+      lua_assert(index >= pc && GET_OPCODE(fs->f->code[index]) == OP_LOADKX);
+      if (changeop) {
+        /* remove LOADKX to avoid add constant to list */
+        SET_OPCODE(fs->f->code[index], OP_NEWTABLEKX);
+      }
+    } else {
+      return 0;
+    }
+    r = GETARG_A(fs->f->code[index]);
+    if (result[0] < 0 && r == rk[0])
+      result[0] = k;
+    else if (result[1] < 0 && r == rk[1] )
+      result[1] = k;
+    else
+      return 0;
+  }
+  for (i=0;i<2;i++) {
+    if (ISK(rk[i])) {
+      rk[i] = INDEXK(rk[i]);
+    } else {
+      rk[i] = result[i];
+      if (rk[i] < 0)
+        return 0;
+    }
+  }
+  return 1;
+}
+
+static void sethash (FuncState *fs, Table *t, int pc) {
+  lua_State *L = fs->ls->L;
+  Proto *f = fs->f;
+  int i;
+  int rk[2];
+  for (i = pc+1; i< fs->pc; i++) {
+    OpCode o = GET_OPCODE(f->code[i]);
+    switch(o) {
+    case OP_LOADK:
+      break;
+    case OP_LOADKX:
+      /* should be OP_EXTRAARG next */
+      ++i;
+      break;
+    case OP_LOADNIL:
+      break;
+    case OP_SETTABLE:
+      rk[0] = GETARG_B(f->code[i]);
+      rk[1] = GETARG_C(f->code[i]);
+      luaK_indexK(fs, pc, i, rk, 1);
+      setobj2t(L, luaH_set(L, t, &f->k[rk[0]]), &f->k[INDEXK(GETARG_C(rk[1]))]);
+      break;
+    default:
+      lua_assert(o == OP_SETLIST);
+      break;
+    }
+  }
+}
+
+static void setarray (FuncState *fs, Table *t, int pc) {
   lua_State *L = fs->ls->L;
   Proto *f = fs->f;
   int array = 1;
-  int i,j,k,oldsize;
+  int i,j;
   for (i = pc+1; i< fs->pc; i++) {
     OpCode o = GET_OPCODE(f->code[i]);
     switch(o) {
@@ -361,13 +451,23 @@ void luaK_tableK (FuncState *fs, Table *t, int pc) {
       }
       break;
     case OP_SETTABLE:
-      setobj2t(L, luaH_set(L, t, &f->k[INDEXK(GETARG_B(f->code[i]))]), &f->k[INDEXK(GETARG_C(f->code[i]))]);
+      /* ignore hash part */
       break;
     default:
-      lua_assert(o == OP_SETLIST);
+      lua_assert(o == OP_SETLIST || o == OP_NEWTABLEK || o == OP_NEWTABLEKX);
       break;
     }
   }
+}
+
+void luaK_tableK (FuncState *fs, Table *t, int pc) {
+  lua_State *L = fs->ls->L;
+  Proto *f = fs->f;
+  int oldsize, k;
+
+  sethash(fs, t, pc);
+  setarray(fs, t, pc);
+
   oldsize = f->sizek;
   k = fs->nk;
   luaM_growvector(L, f->k, k, f->sizek, TValue, MAXARG_Ax, "table constants");
