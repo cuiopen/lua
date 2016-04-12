@@ -368,12 +368,13 @@ void luaK_tableK (FuncState *fs, Table *t, int pc) {
       break;
     }
   }
-  k = oldsize = f->sizek;
+  oldsize = f->sizek;
+  k = fs->nk;
   luaM_growvector(L, f->k, k, f->sizek, TValue, MAXARG_Ax, "table constants");
   while (oldsize < f->sizek) setnilvalue(&f->k[oldsize++]);
-  k = fs->nk++;
   sethvalue(L, &f->k[k], t);
   fs->pc = pc + 1;
+  fs->nk++;
   if (k <= MAXARG_Bx) {
     SET_OPCODE(fs->f->code[pc], OP_NEWTABLEK);
     SETARG_Bx(fs->f->code[pc], k);
