@@ -855,6 +855,25 @@ void luaV_execute (lua_State *L) {
         checkGC(L, ra + 1);
         vmbreak;
       }
+      vmcase(OP_NEWTABLEK) {
+        TValue *rb = k + GETARG_Bx(i);
+        Table *t = luaH_new(L);
+        t->constant = hvalue(rb);
+        sethvalue(L, ra, t);
+        checkGC(L, ra + 1);
+        vmbreak;
+      }
+      vmcase(OP_NEWTABLEKX) {
+        TValue *rb;
+        Table *t;
+        lua_assert(GET_OPCODE(*ci->u.l.savedpc) == OP_EXTRAARG);
+        rb = k + GETARG_Ax(*ci->u.l.savedpc++);
+        t = luaH_new(L);
+        t->constant = hvalue(rb);
+        sethvalue(L, ra, t);
+        checkGC(L, ra + 1);
+        vmbreak;
+      }
       vmcase(OP_SELF) {
         const TValue *aux;
         StkId rb = RB(i);

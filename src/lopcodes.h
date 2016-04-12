@@ -181,6 +181,8 @@ OP_SETUPVAL,/*	A B	UpValue[B] := R(A)				*/
 OP_SETTABLE,/*	A B C	R(A)[RK(B)] := RK(C)				*/
 
 OP_NEWTABLE,/*	A B C	R(A) := {} (size = B,C)				*/
+OP_NEWTABLEK,/* A Bx  R(A) := Kst(Bx) */
+OP_NEWTABLEKX,/* A  R(A) := Kst(extra arg) */
 
 OP_SELF,/*	A B C	R(A+1) := R(B); R(A) := R(B)[RK(C)]		*/
 

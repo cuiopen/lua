@@ -30,6 +30,8 @@ LUAI_DDEF const char *const luaP_opnames[NUM_OPCODES+1] = {
   "SETUPVAL",
   "SETTABLE",
   "NEWTABLE",
+  "NEWTABLEK",
+  "NEWTABLEKX",
   "SELF",
   "ADD",
   "SUB",
@@ -85,6 +87,8 @@ LUAI_DDEF const lu_byte luaP_opmodes[NUM_OPCODES] = {
  ,opmode(0, 0, OpArgU, OpArgN, iABC)		/* OP_SETUPVAL */
  ,opmode(0, 0, OpArgK, OpArgK, iABC)		/* OP_SETTABLE */
  ,opmode(0, 1, OpArgU, OpArgU, iABC)		/* OP_NEWTABLE */
+ ,opmode(0, 1, OpArgK, OpArgN, iABx)		/* OP_NEWTABLEK */
+ ,opmode(0, 1, OpArgN, OpArgN, iABx)		/* OP_NEWTABLEKX */
  ,opmode(0, 1, OpArgR, OpArgK, iABC)		/* OP_SELF */
  ,opmode(0, 1, OpArgK, OpArgK, iABC)		/* OP_ADD */
  ,opmode(0, 1, OpArgK, OpArgK, iABC)		/* OP_SUB */

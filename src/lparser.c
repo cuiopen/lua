@@ -714,6 +714,28 @@ static void field (LexState *ls, struct ConsControl *cc) {
   }
 }
 
+static int isconsttable(FuncState *fs, int pc) {
+  int i;
+  if (pc == fs->pc)
+    return 0; /* empty table */
+  for (i=pc; i < fs->pc; i++) {
+    OpCode o=GET_OPCODE(fs->f->code[i]);
+    if (o != OP_LOADK &&
+      o != OP_SETTABLE &&
+      o != OP_LOADKX &&
+      o != OP_EXTRAARG &&
+      o != OP_LOADNIL &&
+      o != OP_LOADBOOL &&
+      o != OP_SETLIST)
+      return 0;
+    if (o == OP_SETTABLE) {
+      if (!ISK(GETARG_B(fs->f->code[i])) ||
+        !ISK(GETARG_C(fs->f->code[i])))
+        return 0;
+    }
+  }
+  return 1; /* all field is const */
+}
 
 static void constructor (LexState *ls, expdesc *t) {
   /* constructor -> '{' [ field { sep field } [sep] ] '}'
@@ -736,8 +758,15 @@ static void constructor (LexState *ls, expdesc *t) {
   } while (testnext(ls, ',') || testnext(ls, ';'));
   check_match(ls, '}', '{', line);
   lastlistfield(fs, &cc);
-  SETARG_B(fs->f->code[pc], luaO_int2fb(cc.na)); /* set initial array size */
-  SETARG_C(fs->f->code[pc], luaO_int2fb(cc.nh));  /* set initial table size */
+  if (isconsttable(fs, pc+1)) {
+    lua_State *L = ls->L;
+    Table *t = luaH_new(L);
+    luaH_resize(L, t, cc.na, cc.nh);
+    luaK_tableK(fs, t, pc);
+  } else {
+    SETARG_B(fs->f->code[pc], luaO_int2fb(cc.na)); /* set initial array size */
+    SETARG_C(fs->f->code[pc], luaO_int2fb(cc.nh));  /* set initial table size */
+  }
 }
 
 /* }====================================================================== */

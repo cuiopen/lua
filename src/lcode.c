@@ -336,6 +336,53 @@ static int addk (FuncState *fs, TValue *key, TValue *v) {
   return k;
 }
 
+void luaK_tableK (FuncState *fs, Table *t, int pc) {
+  lua_State *L = fs->ls->L;
+  Proto *f = fs->f;
+  int array = 1;
+  int i,j,k,oldsize;
+  for (i = pc+1; i< fs->pc; i++) {
+    OpCode o = GET_OPCODE(f->code[i]);
+    switch(o) {
+    case OP_LOADK:
+      luaH_setint(L, t, array++, &f->k[GETARG_Bx(f->code[i])]);
+      break;
+    case OP_LOADKX:
+      /* should be OP_EXTRAARG next */
+      ++i;
+      lua_assert(i< fs->pc && GET_OPCODE(f->code[i]) == OP_EXTRAARG);
+      luaH_setint(L, t, array++, &f->k[GETARG_Ax(f->code[i])]);
+      break;
+    case OP_LOADNIL:
+      for (j = 0; j <= GETARG_B(f->code[i]); j++) {
+        TValue nil;
+        setnilvalue(&nil);
+        luaH_setint(L, t, array++, &nil);
+      }
+      break;
+    case OP_SETTABLE:
+      setobj2t(L, luaH_set(L, t, &f->k[INDEXK(GETARG_B(f->code[i]))]), &f->k[INDEXK(GETARG_B(f->code[i]))]);
+      break;
+    default:
+      lua_assert(o == OP_SETLIST);
+      break;
+    }
+  }
+  k = oldsize = f->sizek;
+  luaM_growvector(L, f->k, k, f->sizek, TValue, MAXARG_Ax, "table constants");
+  while (oldsize < f->sizek) setnilvalue(&f->k[oldsize++]);
+  k = fs->nk++;
+  sethvalue(L, &f->k[k], t);
+  fs->pc = pc + 1;
+  if (k <= MAXARG_Bx) {
+    SET_OPCODE(fs->f->code[pc], OP_NEWTABLEK);
+    SETARG_Bx(fs->f->code[pc], k);
+  } else {
+    SET_OPCODE(fs->f->code[pc], OP_NEWTABLEKX);
+    codeextraarg(fs, k);
+  }
+  luaC_objbarrier(L, f, t);
+}
 
 int luaK_stringK (FuncState *fs, TString *s) {
   TValue o;
