@@ -11,6 +11,7 @@
 #include "ldo.h"
 #include "lobject.h"
 #include "ltm.h"
+#include "ltable.h"
 
 
 #if !defined(LUA_NOCVTN2S)
@@ -81,7 +82,7 @@
 #define luaV_fastset(L,t,k,slot,f,v) \
   (!ttistable(t) \
    ? (slot = NULL, 0) \
-   : (slot = f(hvalue(t), k), \
+   : (luaH_makemutable(L, hvalue(t)), slot = f(hvalue(t), k), \
      ttisnil(slot) ? 0 \
      : (luaC_barrierback(L, hvalue(t), v), \
         setobj2t(L, cast(TValue *,slot), v), \

@@ -361,7 +361,7 @@ void luaK_tableK (FuncState *fs, Table *t, int pc) {
       }
       break;
     case OP_SETTABLE:
-      setobj2t(L, luaH_set(L, t, &f->k[INDEXK(GETARG_B(f->code[i]))]), &f->k[INDEXK(GETARG_B(f->code[i]))]);
+      setobj2t(L, luaH_set(L, t, &f->k[INDEXK(GETARG_B(f->code[i]))]), &f->k[INDEXK(GETARG_C(f->code[i]))]);
       break;
     default:
       lua_assert(o == OP_SETLIST);

@@ -335,7 +335,7 @@ static void setnodevector (lua_State *L, Table *t, unsigned int size) {
   t->lastfree = gnode(t, size);  /* all positions are free */
 }
 
-static void makemutable (lua_State *L, Table *t) {
+Table * luaH_makemutable_ (lua_State *L, Table *t) {
   Table *from = t->constant;
   int sizearray = from->sizearray;
   int sizenode = twoto(from->lsizenode);
@@ -345,6 +345,7 @@ static void makemutable (lua_State *L, Table *t) {
   memcpy(t->node, from->node, sizenode * sizeof(Node));
   t->lastfree = t->node + (from->lastfree - from->node);
   t->constant = NULL;
+  return t;
 }
 
 void luaH_resize (lua_State *L, Table *t, unsigned int nasize,
@@ -355,8 +356,7 @@ void luaH_resize (lua_State *L, Table *t, unsigned int nasize,
   int oldhsize;
   Node *nold;
 
-  if (t->constant)
-    makemutable(L, t);
+  luaH_makemutable(L, t);
   oldasize = t->sizearray;
   oldhsize = t->lsizenode;
 
@@ -391,8 +391,7 @@ void luaH_resize (lua_State *L, Table *t, unsigned int nasize,
 
 void luaH_resizearray (lua_State *L, Table *t, unsigned int nasize) {
   int nsize;
-  if (t->constant)
-    makemutable(L, t);
+  luaH_makemutable(L, t);
   nsize = isdummy(t->node) ? 0 : sizenode(t);
   luaH_resize(L, t, nasize, nsize);
 }
@@ -468,8 +467,7 @@ static Node *getfreepos (Table *t) {
 TValue *luaH_newkey (lua_State *L, Table *t, const TValue *key) {
   Node *mp;
   TValue aux;
-  if (t->constant)
-    makemutable(L, t);
+  luaH_makemutable(L, t);
   if (ttisnil(key)) luaG_runerror(L, "table index is nil");
   else if (ttisfloat(key)) {
     lua_Integer k;
@@ -626,8 +624,7 @@ const TValue *luaH_get (Table *t, const TValue *key) {
 ** barrier and invalidate the TM cache.
 */
 TValue *luaH_set (lua_State *L, Table *t, const TValue *key) {
-  if (t->constant)
-    makemutable(L, t);
+  luaH_makemutable(L, t);
   const TValue *p = luaH_get(t, key);
   if (p != luaO_nilobject)
     return cast(TValue *, p);
@@ -638,8 +635,7 @@ TValue *luaH_set (lua_State *L, Table *t, const TValue *key) {
 void luaH_setint (lua_State *L, Table *t, lua_Integer key, TValue *value) {
   const TValue *p;
   TValue *cell;
-  if (t->constant)
-    makemutable(L, t);
+  luaH_makemutable(L, t);
   p = luaH_getint(t, key);
   if (p != luaO_nilobject)
     cell = cast(TValue *, p);
